@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>智能客服 Agent（离线版）</title>
+<style>
+  :root{
+    --brand:#2b6de8; --brand-d:#1d54c0; --bg:#f5f7fb; --panel:#ffffff;
+    --line:#e6eaf2; --txt:#1f2533; --sub:#6b7488; --green:#16a34a; --red:#dc2626;
+    --bubble-bot:#eef3ff; --bubble-user:#2b6de8; --shadow:0 2px 12px rgba(30,50,90,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--txt); font-size:14px; line-height:1.6;
+  }
+  #app{height:100vh;display:flex;flex-direction:column;max-width:1100px;margin:0 auto;background:var(--panel);box-shadow:var(--shadow)}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header .logo{width:30px;height:30px;border-radius:8px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+  header .title{font-weight:600;font-size:16px}
+  header .sub{color:var(--sub);font-size:12px}
+  header .spacer{flex:1}
+  .seg{display:flex;background:var(--bg);border-radius:10px;padding:3px}
+  .seg button{border:0;background:transparent;padding:7px 16px;border-radius:8px;cursor:pointer;color:var(--sub);font-size:13px}
+  .seg button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--shadow)}
+  main{flex:1;display:flex;min-height:0}
+  /* sidebar */
+  .side{width:240px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:#fafbfe}
+  .side .new{border:0;margin:12px;padding:10px;border-radius:10px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
+  .side .new:hover{background:var(--brand-d)}
+  .side .list{flex:1;overflow:auto;padding:0 8px 12px}
+  .side .item{padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:4px}
+  .side .item:hover{background:#eef1f8}
+  .side .item.on{background:#e7efff}
+  .side .item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side .item .m{color:var(--sub);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* chat area */
+  .chat{flex:1;display:flex;flex-direction:column;min-width:0}
+  .msgs{flex:1;overflow:auto;padding:18px}
+  .row{display:flex;margin-bottom:14px;gap:10px}
+  .row.user{flex-direction:row-reverse}
+  .av{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+  .av.bot{background:var(--brand)}
+  .av.user{background:#94a3b8}
+  .bub{max-width:72%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
+  .row.bot .bub{background:var(--bubble-bot);border-top-left-radius:4px}
+  .row.user .bub{background:var(--bubble-user);color:#fff;border-top-right-radius:4px}
+  .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;margin-bottom:6px;background:#e3ecff;color:var(--brand)}
+  .tag.t-refund{background:#ffe8e8;color:var(--red)}
+  .tag.t-order{background:#e6f6ec;color:var(--green)}
+  .tag.t-tech{background:#fff3e0;color:#c2740b}
+  .tag.t-other{background:#eef0f4;color:var(--sub)}
+  .sys{text-align:center;color:var(--sub);font-size:12px;margin:10px 0}
+  .sys .pill{background:#eef0f4;padding:4px 12px;border-radius:20px}
+  .inputbar{border-top:1px solid var(--line);padding:12px;display:flex;gap:10px;background:var(--panel)}
+  .inputbar textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none;max-height:120px}
+  .inputbar textarea:focus{border-color:var(--brand)}
+  .inputbar button{border:0;background:var(--brand);color:#fff;padding:0 20px;border-radius:10px;font-weight:600;cursor:pointer}
+  .inputbar button:disabled{opacity:.5;cursor:not-allowed}
+  /* welcome */
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--sub);padding:30px}
+  .welcome .big{width:64px;height:64px;border-radius:18px;background:var(--brand);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .welcome h2{color:var(--txt);margin:0 0 6px}
+  .welcome .chips{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .welcome .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:7px 14px;cursor:pointer;color:var(--brand)}
+  .welcome .chip:hover{background:#f0f5ff}
+  /* satisfaction */
+  .sat{margin:6px 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fafbff}
+  .sat .stars{font-size:22px;cursor:pointer;user-select:none}
+  .sat .stars span{color:#d4d9e3;margin-right:4px}
+  .sat .stars span.on{color:#f5a623}
+  .sat textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;font:inherit;resize:vertical;min-height:50px}
+  /* admin */
+  .admin{flex:1;overflow:auto;padding:18px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:#fafbff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card .n{font-size:24px;font-weight:700;color:var(--brand)}
+  .card .l{color:var(--sub);font-size:12px;margin-top:2px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:16px}
+  .panel h3{margin:0 0 12px;font-size:15px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .filters input,.filters select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit}
+  .filters input{flex:1;min-width:160px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--sub);font-weight:600;background:#fafbff}
+  .badge{font-size:11px;padding:2px 9px;border-radius:20px;background:#eef0f4;color:var(--sub)}
+  .badge.refund{background:#ffe8e8;color:var(--red)}
+  .badge.order{background:#e6f6ec;color:var(--green)}
+  .badge.tech{background:#fff3e0;color:#c2740b}
+  .link{color:var(--brand);cursor:pointer}
+  .btn{border:0;background:var(--brand);color:#fff;padding:8px 14px;border-radius:9px;cursor:pointer;font:inherit;font-weight:600}
+  .btn.ghost{background:#eef1f8;color:var(--txt)}
+  .btn.danger{background:#fde8e8;color:var(--red)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label.f{display:block;margin-bottom:10px}
+  label.f span{display:block;color:var(--sub);font-size:12px;margin-bottom:4px}
+  label.f input,label.f textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit}
+  .modal{position:fixed;inset:0;background:rgba(20,30,50,.4);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal .box{background:#fff;border-radius:14px;width:min(560px,92vw);max-height:86vh;overflow:auto;padding:18px}
+  .modal .box h3{margin-top:0}
+  .close{float:right;cursor:pointer;color:var(--sub);font-size:20px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2533;color:#fff;padding:10px 18px;border-radius:10px;z-index:99;opacity:0;transition:.25s}
+  .toast.show{opacity:1}
+  .hint{font-size:12px;color:var(--sub);margin-top:8px}
+  @media(max-width:720px){.side{width:64px}.side .item .m{display:none}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">客</div>
+    <div>
+      <div class="title" id="brandTitle">智能客服</div>
+      <div class="sub">离线单文件版 · 数据存于本机浏览器</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg">
+      <button id="tabChat" class="on" onclick="switchTab('chat')">对话</button>
+      <button id="tabAdmin" onclick="switchTab('admin')">管理后台</button>
+    </div>
+  </header>
+  <main>
+    <!-- 对话视图 -->
+    <section id="viewChat" style="flex:1;display:flex;min-width:0">
+      <aside class="side">
+        <button class="new" onclick="newChat()">+ 新建对话</button>
+        <div class="list" id="sessionList"></div>
+      </aside>
+      <div class="chat">
+        <div class="msgs" id="msgs"></div>
+        <div class="inputbar">
+          <textarea id="input" rows="1" placeholder="输入您的问题，如：我要退款 / 订单到哪了 / 登录不了…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+          <button id="sendBtn" onclick="send()">发送</button>
+        </div>
+      </div>
+    </section>
+    <!-- 后台视图 -->
+    <section id="viewAdmin" class="admin" style="display:none"></section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 数据层 ============ */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const K = { cfg:'csa_cfg', faqs:'csa_faqs', sess:'csa_sess' };
+
+const DEFAULT_FAQS = [
+  {id:'f1',category:'退款',question:'怎么申请退款？',answer:'您可在「我的订单」中找到对应订单，点击「申请退款」，填写原因后提交，我们会在1-3个工作日内审核并原路退回。',keywords:'退款,退钱,退订,退货,申请退款,退不了,没退'},
+  {id:'f2',category:'退款',question:'退款多久到账？',answer:'审核通过后，款项将原路退回到您的支付账户，通常1-7个工作日到账（信用卡可能稍慢）。',keywords:'到账,几天,多久,退钱,时间'},
+  {id:'f3',category:'订单',question:'怎么查询订单物流？',answer:'进入「我的订单」→ 选择订单 → 点击「查看物流」，即可实时跟踪快递位置和派送状态。',keywords:'物流,快递,到哪,发货,跟踪,查订单'},
+  {id:'f4',category:'订单',question:'可以修改收货地址吗？',answer:'订单未发货前可在订单详情页点击「修改地址」；若已发货，请联系人工客服协助拦截改派。',keywords:'地址,修改地址,改地址,收货'},
+  {id:'f5',category:'订单',question:'下单后多久发货？',answer:'现货商品一般24小时内发货，预售商品以页面标注的发货时间为准。',keywords:'发货时间,多久发货,什么时候发'},
+  {id:'f6',category:'技术',question:'登录不了 / 密码错误怎么办？',answer:'请点击登录页「忘记密码」通过手机或邮箱重置；若仍无法登录，请清理浏览器缓存或更换网络后重试。',keywords:'登录,密码,账号,登不上,进不去,锁'},
+  {id:'f7',category:'技术',question:'App 闪退 / 白屏 / 打不开怎么办？',answer:'建议：①更新到最新版本；②清理缓存后重启；③卸载重装。仍异常请提供机型与系统版本联系人工客服。',keywords:'闪退,白屏,打不开,崩,卡,用不了,报错,故障,bug'},
+  {id:'f8',category:'技术',question:'如何开启消息通知？',answer:'在「设置 → 通知管理」中开启推送权限，并允许浏览器/系统通知即可收到订单与活动提醒。',keywords:'通知,推送,消息,提醒,收不到'},
+  {id:'f9',category:'其他',question:'你们的营业时间？',answer:'在线客服服务时间：每天 9:00–22:00；自助 FAQ 与智能客服全天可用。',keywords:'营业,时间,几点,上班,下班'},
+  {id:'f10',category:'其他',question:'怎么开发票？',answer:'在「我的订单 → 申请发票」中填写抬头与税号，电子发票将在3个工作日内发送到你预留的邮箱。',keywords:'发票,开票,报销,抬头'},
+  {id:'f11',category:'其他',question:'有什么优惠活动？',answer:'当前活动可在首页「领券中心」领取优惠券，关注店铺还可享受会员专属折扣，具体以活动页为准。',keywords:'优惠,活动,券,折扣,便宜,促销'},
+  {id:'f12',category:'其他',question:'联系方式 / 客服电话？',answer:'如需人工帮助，请在本窗口发送「转人工」，我们将为你接入在线人工客服（服务时间 9:00–22:00）。',keywords:'电话,联系,客服,人工,转人工,真人'}
+];
+
+function defaultCfg(){ return { brand_name:'智助商城', welcome_message:'您好！我是您的智能客服助手，可以帮您解答退款、订单、使用问题。请问有什么可以帮您？', persona:'' }; }
+
+/* ============ 状态 ============ */
+let cfg = LS.get(K.cfg, null) || defaultCfg();
+let faqs = LS.get(K.faqs, null) || DEFAULT_FAQS.slice();
+let sessions = LS.get(K.sess, []);
+let curId = null;
+let pendingSat = {}; // sessionId -> {rating,comment}
+
+/* ============ 引擎：意图 + FAQ ============ */
+const INTENT_KW = {
+  refund:['退款','退钱','退订','退货','退不了','没退','申请退款','不退款','退单'],
+  order:['订单','查订单','物流','发货','快递','到哪','没收到','下单','改地址','取消订单','派送','运单'],
+  tech:['登录','密码','账号','打不开','闪退','报错','崩','卡','用不了','安装','更新','bug','故障','白屏','进不去','登不上'],
+  other:['你好','您好','谢谢','营业','时间','地址','优惠','发票','评价','活动','券','电话','联系']
+};
+const HANDOFF_KW = ['转人工','人工','真人','客服电话','投诉','没人理','怎么办啊','活人'];
+
+function classifyIntent(text){
+  const t = (text||'').toLowerCase();
+  let best='other', bestScore=0;
+  for(const [intent, kws] of Object.entries(INTENT_KW)){
+    let s=0;
+    for(const k of kws){ if(t.includes(k.toLowerCase())) s+= (k.length>2?2:1); }
+    if(s>bestScore){ bestScore=s; best=intent; }
+  }
+  return { intent:best, score:bestScore };
+}
+function searchFaqScored(text, limit=2){
+  const t=(text||'').toLowerCase();
+  const scored = faqs.map(f=>{
+    let s=0;
+    const kws=(f.keywords||'').split(',').map(k=>k.trim().toLowerCase()).filter(Boolean);
+    // 关键词在用户语句中精确命中：强信号
+    for(const k of kws){ if(k && t.includes(k)) s+=5; }
+    // 仅在 FAQ 自身「问题+关键词」的特征字上做字符重叠，避免通用答案文本造成误匹配
+    const kwchars = (f.question+' '+kws.join('')).split('').filter(c=>/[\u4e00-\u9fa5]/.test(c));
+    const seen=new Set();
+    for(const c of t.split('')){ if(c.trim() && kwchars.indexOf(c)>=0 && !seen.has(c)){ seen.add(c); s+=1; } }
+    return { f, s };
+  }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
+  return scored.slice(0,limit);
+}
+function searchFaq(text, limit=2){ return searchFaqScored(text, limit).map(x=>x.f); }
+function detectHandoff(text){
+  const t=(text||'').toLowerCase();
+  return HANDOFF_KW.some(k=>t.includes(k.toLowerCase()));
+}
+const INTENT_LABEL={refund:'退款',order:'订单查询',tech:'技术支持',other:'其他'};
+
+function buildReply(text){
+  const { intent, score } = classifyIntent(text);
+  const wantHuman = detectHandoff(text);
+  const matchedRaw = searchFaqScored(text, 3);
+  const top = matchedRaw[0] ? matchedRaw[0].s : 0;
+  const matched = matchedRaw.filter(x=>x.s >= top*0.6).map(x=>x.f).slice(0,2);
+
+  // 明确要人工
+  if(wantHuman){
+    return { intent, text:'已为您记录人工服务需求～（当前为离线演示版，人工坐席需在联网后台中使用）\n您可以先描述问题，我将尽力用知识库为您解答；如需电话，请留下联系方式，我们会尽快回拨。', handoff:true };
+  }
+  // FAQ 命中
+  if(matched.length>0){
+    const body = matched.map((f,i)=>`【${f.category}】${f.answer}`).join('\n\n');
+    const more = matched.length<faqs.length ? '\n\n如仍未解决，可回复「转人工」联系人工客服。' : '';
+    return { intent, text: body+more, handoff:false };
+  }
+  // 意图明确但无 FAQ
+  if(intent==='refund') return { intent, text:'关于退款，您可以在「我的订单」中申请退款，款项将原路退回（1-7个工作日到账）。\n如需人工协助，请回复「转人工」。', handoff:false };
+  if(intent==='order') return { intent, text:'关于订单与物流，可在「我的订单」查看实时状态。\n如需修改地址或加急，请回复「转人工」由人工为您处理。', handoff:false };
+  if(intent==='tech') return { intent, text:'请尝试：①更新到最新版本；②清理缓存后重启；③卸载重装。\n仍异常请提供机型与系统版本，回复「转人工」联系我们。', handoff:false };
+  // 兜底
+  return { intent:'other', text: cfg.welcome_message || '您好，请问有什么可以帮您？您可以咨询退款、订单、使用问题，或回复「转人工」转接人工客服。', handoff:false };
+}
+
+/* ============ 渲染：对话 ============ */
+function renderSessions(){
+  const el=document.getElementById('sessionList');
+  if(sessions.length===0){ el.innerHTML='<div style="color:var(--sub);padding:10px 12px;font-size:12px">暂无对话</div>'; return; }
+  el.innerHTML = sessions.map(s=>{
+    const last = (s.messages||[]).filter(m=>m.role==='user').slice(-1)[0];
+    return `<div class="item ${s.id===curId?'on':''}" onclick="openSession('${s.id}')">
+      <div class="t">${esc(s.title||'对话')}</div>
+      <div class="m">${esc(last?last.content.slice(0,20):'')}</div>
+    </div>`;
+  }).join('');
+}
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function tagHtml(intent){
+  const map={refund:'t-refund',order:'t-order',tech:'t-tech',other:'t-other'};
+  return `<span class="tag ${map[intent]||'t-other'}">意图识别：${INTENT_LABEL[intent]||'其他'}</span>`;
+}
+function renderMsgs(){
+  const box=document.getElementById('msgs');
+  const s = sessions.find(x=>x.id===curId);
+  if(!s){ box.innerHTML = welcomeHtml(); return; }
+  let html='';
+  for(const m of s.messages){
+    if(m.role==='system'){ html+=`<div class="sys"><span class="pill">${esc(m.content)}</span></div>`; continue; }
+    const isUser = m.role==='user';
+    const av = isUser?'user':'bot';
+    const inner = isUser ? esc(m.content)
+      : ( (m.intent?tagHtml(m.intent):'') + esc(m.content)
+          + (m.handoff?`<div class="sys" style="text-align:left;color:var(--red)">⚠ 已标记需人工介入</div>`:'') );
+    html+=`<div class="row ${isUser?'user':'bot'}"><div class="av ${av}">${isUser?'我':'客'}</div><div class="bub">${inner}</div></div>`;
+  }
+  // 满意度
+  if(s.ended && !s.satisfaction){
+    html+=`<div class="sat" id="satBox">
+      <div>本次服务还满意吗？<span class="stars" id="stars"></span></div>
+      <textarea id="satC" placeholder="补充意见（选填）"></textarea>
+      <div style="margin-top:8px"><button class="btn" onclick="submitSat('${s.id}')">提交评价</button></div>
+    </div>`;
+  } else if(s.satisfaction){
+    html+=`<div class="sys"><span class="pill">已评价：${'★'.repeat(s.satisfaction.rating)}${'☆'.repeat(5-s.satisfaction.rating)} ${esc(s.satisfaction.comment||'')}</span></div>`;
+  }
+  box.innerHTML=html;
+  if(s.ended && !s.satisfaction) renderStars(0);
+  box.scrollTop=box.scrollHeight;
+}
+function renderStars(n){
+  const el=document.getElementById('stars'); if(!el) return;
+  el.innerHTML=[1,2,3,4,5].map(i=>`<span class="${i<=n?'on':''}" onclick="renderStars(${i});pendingSat['${curId}']={rating:${i}}">${i<=n?'★':'☆'}</span>`).join('');
+}
+function welcomeHtml(){
+  const chips=['我要退款','订单到哪了','登录不了','转人工'];
+  return `<div class="welcome">
+    <div class="big">客</div>
+    <h2>${esc(cfg.brand_name||'智能客服')}</h2>
+    <div>${esc(cfg.welcome_message||'您好，有什么可以帮您？')}</div>
+    <div class="chips">${chips.map(c=>`<div class="chip" onclick="quickSend('${c}')">${c}</div>`).join('')}</div>
+    <div class="hint">提示：这是离线版，对话仅保存在你本机浏览器；点「新建对话」开始。</div>
+  </div>`;
+}
+function quickSend(t){ document.getElementById('input').value=t; send(); }
+
+/* ============ 对话操作 ============ */
+function newChat(){
+  const id='s_'+Date.now();
+  const s={ id, title:'新对话', createdAt:Date.now(), messages:[], ended:false, satisfaction:null };
+  sessions.unshift(s); curId=id; saveSess(); renderSessions(); renderMsgs();
+}
+function openSession(id){ curId=id; renderSessions(); renderMsgs(); }
+function send(){
+  const ta=document.getElementById('input');
+  const text=ta.value.trim(); if(!text) return;
+  let s=sessions.find(x=>x.id===curId);
+  if(!s){ newChat(); s=sessions.find(x=>x.id===curId); }
+  s.messages.push({role:'user',content:text,timestamp:Date.now()});
+  if(s.title==='新对话') s.title=text.slice(0,14);
+  ta.value=''; ta.style.height='auto';
+  renderMsgs(); saveSess();
+  // 机器人回复
+  setTimeout(()=>{
+    const r=buildReply(text);
+    s.messages.push({role:'assistant',content:r.text,intent:r.intent,handoff:r.handoff,timestamp:Date.now()});
+    renderMsgs(); saveSess();
+  }, 350);
+}
+function endChat(){
+  const s=sessions.find(x=>x.id===curId); if(!s) return;
+  s.ended=true; s.messages.push({role:'system',content:'对话已结束'});
+  saveSess(); renderMsgs(); toast('已结束对话，欢迎评价');
+}
+function submitSat(id){
+  const s=sessions.find(x=>x.id===id); if(!s) return;
+  const rating=(pendingSat[id]&&pendingSat[id].rating)||0;
+  const comment=document.getElementById('satC')?document.getElementById('satC').value.trim():'';
+  if(!rating){ toast('请先点星评分'); return; }
+  s.satisfaction={rating,comment}; saveSess(); renderMsgs(); toast('感谢您的评价！');
+}
+function delSession(id){
+  if(!confirm('确定删除该对话？')) return;
+  sessions=sessions.filter(x=>x.id!==id);
+  if(curId===id) curId=null;
+  saveSess(); renderSessions(); renderMsgs();
+}
+function saveSess(){ LS.set(K.sess, sessions); }
+
+/* ============ 后台 ============ */
+let adminFilter={intent:'',transferred:false,rated:false,q:''};
+function switchTab(tab){
+  document.getElementById('viewChat').style.display = tab==='chat'?'flex':'none';
+  document.getElementById('viewAdmin').style.display = tab==='admin'?'block':'none';
+  document.getElementById('tabChat').className = tab==='chat'?'on':'';
+  document.getElementById('tabAdmin').className = tab==='admin'?'on':'';
+  if(tab==='admin') renderAdmin();
+}
+function adminStats(){
+  const total=sessions.length;
+  const byIntent={refund:0,order:0,tech:0,other:0};
+  let rated=0, sum=0, transferred=0;
+  for(const s of sessions){
+    if(s.messages.some(m=>m.intent)){ const it=s.messages.find(m=>m.intent).intent; byIntent[it]=(byIntent[it]||0)+1; }
+    if(s.messages.some(m=>m.handoff)) transferred++;
+    if(s.satisfaction){ rated++; sum+=s.satisfaction.rating; }
+  }
+  return { total, byIntent, rated, avg: rated? (sum/rated):0, transferred };
+}
+function renderAdmin(){
+  const st=adminStats();
+  const filtered=sessions.filter(s=>{
+    if(adminFilter.intent && !(s.messages||[]).some(m=>m.intent===adminFilter.intent)) return false;
+    if(adminFilter.transferred && !(s.messages||[]).some(m=>m.handoff)) return false;
+    if(adminFilter.rated && !s.satisfaction) return false;
+    if(adminFilter.q){ const q=adminFilter.q.toLowerCase(); const hit=(s.messages||[]).some(m=>m.content&&m.content.toLowerCase().includes(q)); if(!hit) return false; }
+    return true;
+  });
+  const view=document.getElementById('viewAdmin');
+  view.innerHTML=`
+    <div class="cards">
+      <div class="card"><div class="n">${st.total}</div><div class="l">对话总数</div></div>
+      <div class="card"><div class="n">${st.byIntent.refund||0}</div><div class="l">退款意图</div></div>
+      <div class="card"><div class="n">${st.byIntent.order||0}</div><div class="l">订单意图</div></div>
+      <div class="card"><div class="n">${st.byIntent.tech||0}</div><div class="l">技术意图</div></div>
+      <div class="card"><div class="n">${st.transferred}</div><div class="l">转人工次数</div></div>
+      <div class="card"><div class="n">${st.rated?st.avg.toFixed(1):'—'}</div><div class="l">平均满意度</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>AI 配置（用户端立即生效）</h3>
+      <div class="row2">
+        <label class="f"><span>品牌名称</span><input id="cfgBrand" value="${esc(cfg.brand_name)}"></label>
+        <label class="f"><span>欢迎语</span><input id="cfgWelcome" value="${esc(cfg.welcome_message)}"></label>
+      </div>
+      <label class="f"><span>人设 / 语气（演示说明，用于标识助手身份）</span><input id="cfgPersona" value="${esc(cfg.persona||'')}" placeholder="例如：专业、耐心、略带幽默的电商客服"></label>
+      <button class="btn" onclick="saveCfg()">保存配置</button>
+      <div class="hint">配置保存在本机浏览器，仅当前设备可见。</div>
+    </div>
+
+    <div class="panel">
+      <h3>对话记录</h3>
+      <div class="filters">
+        <input placeholder="搜索对话内容…" id="fQ" value="${esc(adminFilter.q)}" oninput="adminFilter.q=this.value;renderAdmin()">
+        <select onchange="adminFilter.intent=this.value;renderAdmin()">
+          <option value="">全部意图</option>
+          <option value="refund" ${adminFilter.intent==='refund'?'selected':''}>退款</option>
+          <option value="order" ${adminFilter.intent==='order'?'selected':''}>订单</option>
+          <option value="tech" ${adminFilter.intent==='tech'?'selected':''}>技术</option>
+          <option value="other" ${adminFilter.intent==='other'?'selected':''}>其他</option>
+        </select>
+        <label class="f" style="margin:0;display:flex;align-items:center;gap:6px"><input type="checkbox" ${adminFilter.transferred?'checked':''} onchange="adminFilter.transferred=this.checked;renderAdmin()">仅转人工</label>
+        <label class="f" style="margin:0;display:flex;align-items:center;gap:6px"><input type="checkbox" ${adminFilter.rated?'checked':''} onchange="adminFilter.rated=this.checked;renderAdmin()">仅已评价</label>
+      </div>
+      <table><thead><tr><th>标题</th><th>意图</th><th>转人工</th><th>满意度</th><th>操作</th></tr></thead><tbody>
+        ${filtered.length===0?'<tr><td colspan="5" style="color:var(--sub)">暂无符合条件的对话</td></tr>':
+          filtered.map(s=>{
+            const it=(s.messages||[]).find(m=>m.intent);
+            const intent=it?it.intent:'other';
+            return `<tr>
+              <td>${esc(s.title||'对话')}</td>
+              <td><span class="badge ${intent}">${INTENT_LABEL[intent]}</span></td>
+              <td>${ (s.messages||[]).some(m=>m.handoff)?'<span class="badge refund">是</span>':'—' }</td>
+              <td>${ s.satisfaction? '★'.repeat(s.satisfaction.rating):'—' }</td>
+              <td><span class="link" onclick="openDetail('${s.id}')">查看</span> · <span class="link" onclick="delSession('${s.id}')">删除</span></td>
+            </tr>`;
+          }).join('')}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h3>FAQ 知识库（${faqs.length} 条）</h3>
+      <button class="btn ghost" onclick="showAddFaq()">+ 添加 FAQ</button>
+      <table style="margin-top:10px"><thead><tr><th>分类</th><th>问题</th><th>答案</th></tr></thead><tbody>
+        ${faqs.map(f=>`<tr><td><span class="badge">${esc(f.category)}</span></td><td>${esc(f.question)}</td><td style="color:var(--sub)">${esc(f.answer.slice(0,40))}…</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+  `;
+}
+function saveCfg(){
+  cfg={ brand_name:document.getElementById('cfgBrand').value.trim()||'智能客服',
+        welcome_message:document.getElementById('cfgWelcome').value.trim(),
+        persona:document.getElementById('cfgPersona').value.trim() };
+  LS.set(K.cfg, cfg);
+  document.getElementById('brandTitle').textContent=cfg.brand_name;
+  renderMsgs(); renderAdmin(); toast('配置已保存');
+}
+function showAddFaq(){
+  const box=document.createElement('div'); box.className='modal';
+  box.innerHTML=`<div class="box"><span class="close" onclick="this.parentNode.parentNode.remove()">×</span>
+    <h3>添加 FAQ</h3>
+    <label class="f"><span>分类</span><input id="nfCat" value="其他"></label>
+    <label class="f"><span>问题</span><input id="nfQ" placeholder="如：怎么开发票？"></label>
+    <label class="f"><span>答案</span><textarea id="nfA" rows="3" placeholder="标准回复内容"></textarea></label>
+    <label class="f"><span>关键词（逗号分隔，提升命中）</span><input id="nfK" placeholder="发票,开票,报销"></label>
+    <button class="btn" onclick="addFaq()">保存</button>
+  </div>`;
+  document.body.appendChild(box);
+}
+function addFaq(){
+  const q=document.getElementById('nfQ').value.trim();
+  const a=document.getElementById('nfA').value.trim();
+  if(!q||!a){ toast('请填写问题与答案'); return; }
+  faqs.push({id:'f'+Date.now(),category:document.getElementById('nfCat').value.trim()||'其他',question:q,answer:a,keywords:document.getElementById('nfK').value.trim()});
+  LS.set(K.faqs, faqs);
+  document.querySelector('.modal').remove();
+  renderAdmin(); toast('已添加 FAQ');
+}
+function openDetail(id){
+  const s=sessions.find(x=>x.id===id); if(!s) return;
+  const box=document.createElement('div'); box.className='modal';
+  const msgs=s.messages.map(m=>{
+    if(m.role==='system') return `<div style="color:var(--sub);text-align:center;margin:6px">— ${esc(m.content)} —</div>`;
+    const who=m.role==='user'?'用户':'客服';
+    const color=m.role==='user'?'var(--brand)':'var(--sub)';
+    return `<div style="margin:8px 0"><b style="color:${color}">${who}${m.intent?'（'+INTENT_LABEL[m.intent]+'）':''}：</b>${esc(m.content)}</div>`;
+  }).join('');
+  box.innerHTML=`<div class="box"><span class="close" onclick="this.parentNode.parentNode.remove()">×</span>
+    <h3>${esc(s.title||'对话')}</h3>
+    <div style="max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafbff">${msgs}</div>
+    <div style="margin-top:12px"><button class="btn ghost" onclick="this.parentNode.parentNode.parentNode.remove()">关闭</button></div>
+  </div>`;
+  document.body.appendChild(box);
+}
+
+/* ============ 工具 ============ */
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'; clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',1800); }
+
+/* ============ 初始化 ============ */
+function init(){
+  document.getElementById('brandTitle').textContent=cfg.brand_name;
+  if(sessions.length>0){ curId=sessions[0].id; }
+  renderSessions(); renderMsgs();
+  const ta=document.getElementById('input');
+  ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; });
+}
+init();
+</script>
+</body>
+</html>
